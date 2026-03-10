@@ -4,13 +4,13 @@ DEMO_START=$(date +%s)
 
 TEMP_DIR="upgrade-example"
 
-# Java version configuration
-JAVA8_VERSION="8.0.482-librca"
-JAVA21_VERSION="21.0.10-librca"
+# Java version configuration — sourced from .sdkmanrc
+JAVA8_VERSION=$(grep '^java=8' "$(dirname "$0")/.sdkmanrc" | cut -d'=' -f2)
+JAVA21_VERSION=$(grep '^java=21' "$(dirname "$0")/.sdkmanrc" | cut -d'=' -f2)
 JAVA21_HOME="${SDKMAN_DIR:-$HOME/.sdkman}/candidates/java/$JAVA21_VERSION"
 
-SPRING_ADVISOR_MAPPING_CUSTOM_0_GIT_URI="https://github.com/dashaun-tanzu/advisor-mappings.git"
-SPRING_ADVISOR_MAPPING_CUSTOM_0_GIT_PATH="mappings/"
+export SPRING_ADVISOR_MAPPING_CUSTOM_0_GIT_URI="https://github.com/dashaun-tanzu/advisor-mappings.git"
+export SPRING_ADVISOR_MAPPING_CUSTOM_0_GIT_PATH="mappings/"
 
 # Function to check if a command exists
 check_dependency() {
@@ -67,7 +67,7 @@ check_env_vars
 . ./vendir/demo-magic/demo-magic.sh
 export TYPE_SPEED=100
 export DEMO_PROMPT="${GREEN}➜ ${CYAN}\W ${COLOR_RESET}"
-export PROMPT_TIMEOUT=6
+export PROMPT_TIMEOUT=3
 
 
 # Stop ANY & ALL Java Process...they could be Springboot running on our ports!
@@ -97,13 +97,7 @@ function talkingPoint() {
   clear
 }
 
-# Check if Java version is already installed
-check_java_installed() {
-  local version=$1
-  sdk list java | grep -q "$version" && sdk list java | grep "$version" | grep -q "installed"
-}
-
-# Initialize SDKMAN and install required Java versions
+# Source SDKMAN so the sdk shell function is available
 function initSDKman() {
   local sdkman_init
   sdkman_init="${SDKMAN_DIR:-$HOME/.sdkman}/bin/sdkman-init.sh"
@@ -113,21 +107,6 @@ function initSDKman() {
   else
     echo "SDKMAN not found. Please install SDKMAN first."
     exit 1
-  fi
-  
-  # Install Java versions only if not already installed
-  if ! check_java_installed "$JAVA8_VERSION"; then
-    echo "Installing Java $JAVA8_VERSION..."
-    sdk install java "$JAVA8_VERSION"
-  else
-    echo "Java $JAVA8_VERSION already installed."
-  fi
-  
-  if ! check_java_installed "$JAVA21_VERSION"; then
-    echo "Installing Java $JAVA21_VERSION..."
-    sdk install java "$JAVA21_VERSION"
-  else
-    echo "Java $JAVA21_VERSION already installed."
   fi
 }
 
@@ -159,11 +138,16 @@ function cloneApp {
   pei "git clone https://github.com/dashaun/hello-spring-boot-1-5.git ./"
 }
 
-# Start the Spring Boot application
+# Build the Spring Boot application (clean + package, no start)
+function springBootBuild {
+  displayMessage "Build the Spring Boot application"
+  pei "./mvnw -q clean package -DskipTests"
+}
+
+# Start the already-built Spring Boot application (no rebuild)
 function springBootStart {
   displayMessage "Start the Spring Boot application, Wait For It...."
-  pei "./mvnw -q clean package spring-boot:start -Dfork=true -DskipTests 2>&1 | tee '$1' &"
-  sleep 3
+  pei "./mvnw -q spring-boot:start -Dfork=true 2>&1 | tee '$1' &"
 }
 
 # Stop the Spring Boot application
@@ -203,8 +187,9 @@ function startCVECheckBackground {
     -Dnvd.api.key="$NVD_API_KEY" \
     -DossIndexUsername="$OSSINDEX_USERNAME" \
     -DossIndexPassword="$OSSINDEX_PASSWORD" \
-    -Dformats=HTML,JSON > /dev/null 2>&1 &
+    -Dformats=HTML,JSON > owasp-check.log 2>&1 &
   CVE_CHECK_PID=$!
+  disown $CVE_CHECK_PID
 }
 
 function collectCVECount {
@@ -324,18 +309,6 @@ useJava8
 talkingPoint
 cloneApp
 talkingPoint
-springBootStart java8with1.5.log
-talkingPoint
-validateApp_1_5
-talkingPoint
-startCVECheckBackground java8with1.5.cves
-talkingPoint
-showMemoryUsage "$(jps | grep 'HelloSpringApplication' | cut -d ' ' -f 1)" java8with1.5.log2
-talkingPoint
-springBootStop
-talkingPoint
-collectCVECount java8with1.5.cves
-talkingPoint
 advisorBuildConfig
 talkingPoint
 captureSBOMCount java8with1.5.deps
@@ -350,6 +323,20 @@ showBuildConfigSubmodules
 talkingPoint
 showBuildConfigTools
 talkingPoint
+springBootBuild
+talkingPoint
+startCVECheckBackground java8with1.5.cves
+talkingPoint
+springBootStart java8with1.5.log
+talkingPoint
+validateApp_1_5
+talkingPoint
+showMemoryUsage "$(jps | grep 'HelloSpringApplication' | cut -d ' ' -f 1)" java8with1.5.log2
+talkingPoint
+springBootStop
+talkingPoint
+collectCVECount java8with1.5.cves
+talkingPoint
 advisorUpgradePlanGet
 talkingPoint
 useJava21
@@ -360,11 +347,13 @@ advisorBuildConfig
 talkingPoint
 captureSBOMCount java21with4.0.deps
 talkingPoint
+springBootBuild
+talkingPoint
+startCVECheckBackground java21with4.0.cves
+talkingPoint
 springBootStart java21with4.0.log
 talkingPoint
 validateApp
-talkingPoint
-startCVECheckBackground java21with4.0.cves
 talkingPoint
 showMemoryUsage "$(jps | grep 'HelloSpringApplication' | cut -d ' ' -f 1)" java21with4.0.log2
 talkingPoint
