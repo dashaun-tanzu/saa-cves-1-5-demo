@@ -76,6 +76,20 @@ export OSSINDEX_PASSWORD=<your-ossindex-password>
 ./demo.sh
 ```
 
+## Recording the Demo
+
+Generate `demo.cast` with asciinema:
+
+```bash
+asciinema rec demo.cast --overwrite --cols 200 --rows 50 -c ./demo.sh
+```
+
+Convert to `demo.gif` with agg:
+
+```bash
+agg --speed 2 --no-loop demo.cast demo.gif
+```
+
 ## Attributions
 - [Demo Magic](https://github.com/paxtonhare/demo-magic) is pulled via `vendir sync` (skipped if already present)
 
