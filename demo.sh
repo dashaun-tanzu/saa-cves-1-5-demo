@@ -144,10 +144,10 @@ function springBootBuild {
   pei "./mvnw -q clean package -DskipTests"
 }
 
-# Start the already-built Spring Boot application (no rebuild)
+# Package and start the Spring Boot application (package ensures correct classpath)
 function springBootStart {
   displayMessage "Start the Spring Boot application, Wait For It...."
-  pei "./mvnw -q spring-boot:start -Dfork=true 2>&1 | tee '$1' &"
+  pei "./mvnw -q package spring-boot:start -Dfork=true -DskipTests 2>&1 | tee '$1' &"
 }
 
 # Stop the Spring Boot application
@@ -285,9 +285,9 @@ function statsSoFarTableColored {
 
   # Spring Boot 4.0 with Java 21 (Green - improved)
   MEM2=$(cat java21with4.0.log2)
-  PERC2=$(bc <<< "scale=2; 100 - ${MEM2}/${MEM1}*100")
+  PERC2=$([ -n "$MEM2" ] && [ -n "$MEM1" ] && bc <<< "scale=2; 100 - ${MEM2}/${MEM1}*100" || echo "N/A")
   START2=$(startupTime 'java21with4.0.log')
-  PERCSTART2=$(bc <<< "scale=2; 100 - ${START2}/${START1}*100")
+  PERCSTART2=$([ -n "$START2" ] && [ -n "$START1" ] && bc <<< "scale=2; 100 - ${START2}/${START1}*100" || echo "N/A")
   CVE2=$(cat java21with4.0.cves)
   DEPS2=$(cat java21with4.0.deps)
   printf "${GREEN}%-35s %-25s %-10s %-10s %-15s %s ${NC}\n" "Spring Boot 4.0 with Java 21" "$START2 ($PERCSTART2% faster)" "$DEPS2" "$CVE2" "$MEM2" "$PERC2%"
