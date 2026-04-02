@@ -6,8 +6,9 @@ TEMP_DIR="upgrade-example"
 
 # Java version configuration — sourced from .sdkmanrc
 JAVA8_VERSION=$(grep '^java=8' "$(dirname "$0")/.sdkmanrc" | cut -d'=' -f2)
-JAVA21_VERSION=$(grep '^java=21' "$(dirname "$0")/.sdkmanrc" | cut -d'=' -f2)
-JAVA21_HOME="${SDKMAN_DIR:-$HOME/.sdkman}/candidates/java/$JAVA21_VERSION"
+JAVA25_VERSION=$(grep '^java=25' "$(dirname "$0")/.sdkmanrc" | cut -d'=' -f2)
+JAVA25_HOME="${SDKMAN_DIR:-$HOME/.sdkman}/candidates/java/$JAVA25_VERSION"
+
 
 export SPRING_ADVISOR_MAPPING_CUSTOM_0_GIT_URI="https://github.com/dashaun-tanzu/advisor-mappings.git"
 export SPRING_ADVISOR_MAPPING_CUSTOM_0_GIT_PATH="mappings/"
@@ -125,10 +126,10 @@ function useJava8 {
   pei "java -version"
 }
 
-# Switch to Java 21 and display version
-function useJava21 {
-  displayMessage "Switch to Java 21 for Spring Boot 3"
-  pei "sdk use java $JAVA21_VERSION"
+# Switch to Java 25 and display version
+function useJava25 {
+  displayMessage "Switch to Java 25 for Spring Boot 4"
+  pei "sdk use java $JAVA25_VERSION"
   pei "java -version"
 }
 
@@ -183,13 +184,12 @@ function startCVECheckBackground {
   local log_file=$1
   displayMessage "Starting OWASP Dependency Check in background..."
   p './mvnw org.owasp:dependency-check-maven:check -Dnvd.api.key=$NVD_API_KEY -DossIndexUsername=$OSSINDEX_USERNAME -DossIndexPassword=$OSSINDEX_PASSWORD -Dformats=HTML,JSON'
-  JAVA_HOME="$JAVA21_HOME" ./mvnw org.owasp:dependency-check-maven:check \
+  JAVA_HOME="$JAVA25_HOME" ./mvnw org.owasp:dependency-check-maven:check \
     -Dnvd.api.key="$NVD_API_KEY" \
     -DossIndexUsername="$OSSINDEX_USERNAME" \
     -DossIndexPassword="$OSSINDEX_PASSWORD" \
     -Dformats=HTML,JSON > owasp-check.log 2>&1 &
   CVE_CHECK_PID=$!
-  disown $CVE_CHECK_PID
 }
 
 function collectCVECount {
@@ -283,14 +283,14 @@ function statsSoFarTableColored {
   DEPS1=$(cat java8with1.5.deps)
   printf "${RED}%-35s %-25s %-10s %-10s %-15s %s${NC}\n" "Spring Boot 1.5 with Java 8" "$START1" "$DEPS1" "$CVE1" "$MEM1" "-"
 
-  # Spring Boot 4.0 with Java 21 (Green - improved)
-  MEM2=$(cat java21with4.0.log2)
+  # Spring Boot 4.0 with Java 25 (Green - improved)
+  MEM2=$(cat java25with4.0.log2)
   PERC2=$([ -n "$MEM2" ] && [ -n "$MEM1" ] && bc <<< "scale=2; 100 - ${MEM2}/${MEM1}*100" || echo "N/A")
-  START2=$(startupTime 'java21with4.0.log')
+  START2=$(startupTime 'java25with4.0.log')
   PERCSTART2=$([ -n "$START2" ] && [ -n "$START1" ] && bc <<< "scale=2; 100 - ${START2}/${START1}*100" || echo "N/A")
-  CVE2=$(cat java21with4.0.cves)
-  DEPS2=$(cat java21with4.0.deps)
-  printf "${GREEN}%-35s %-25s %-10s %-10s %-15s %s ${NC}\n" "Spring Boot 4.0 with Java 21" "$START2 ($PERCSTART2% faster)" "$DEPS2" "$CVE2" "$MEM2" "$PERC2%"
+  CVE2=$(cat java25with4.0.cves)
+  DEPS2=$(cat java25with4.0.deps)
+  printf "${GREEN}%-35s %-25s %-10s %-10s %-15s %s ${NC}\n" "Spring Boot 4.0 with Java 25" "$START2 ($PERCSTART2% faster)" "$DEPS2" "$CVE2" "$MEM2" "$PERC2%"
 
   echo -e "${WHITE}--------------------------------------------------------------------------------------------------------------${NC}"
   DEMO_STOP=$(date +%s)
@@ -339,26 +339,26 @@ collectCVECount java8with1.5.cves
 talkingPoint
 advisorUpgradePlanGet
 talkingPoint
-useJava21
+useJava25
 talkingPoint
 advisorUpgradePlanApplySquash
 talkingPoint
 advisorBuildConfig
 talkingPoint
-captureSBOMCount java21with4.0.deps
+captureSBOMCount java25with4.0.deps
 talkingPoint
 springBootBuild
 talkingPoint
-startCVECheckBackground java21with4.0.cves
+startCVECheckBackground java25with4.0.cves
 talkingPoint
-springBootStart java21with4.0.log
+springBootStart java25with4.0.log
 talkingPoint
 validateApp
 talkingPoint
-showMemoryUsage "$(jps | grep 'HelloSpringApplication' | cut -d ' ' -f 1)" java21with4.0.log2
+showMemoryUsage "$(jps | grep 'HelloSpringApplication' | cut -d ' ' -f 1)" java25with4.0.log2
 talkingPoint
 springBootStop
 talkingPoint
-collectCVECount java21with4.0.cves
+collectCVECount java25with4.0.cves
 talkingPoint
 statsSoFarTableColored
