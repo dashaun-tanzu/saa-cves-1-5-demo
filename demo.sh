@@ -67,7 +67,7 @@ check_env_vars
 . ./vendir/demo-magic/demo-magic.sh
 export TYPE_SPEED=100
 export DEMO_PROMPT="${GREEN}➜ ${CYAN}\W ${COLOR_RESET}"
-export PROMPT_TIMEOUT=3
+export PROMPT_TIMEOUT=5
 
 
 # Stop ANY & ALL Java Process...they could be Springboot running on our ports!
@@ -182,7 +182,7 @@ function showMemoryUsage {
 function startCVECheckBackground {
   local log_file=$1
   displayMessage "Starting OWASP Dependency Check in background..."
-  p './mvnw org.owasp:dependency-check-maven:check -Dnvd.api.key=$NVD_API_KEY -DossIndexUsername=$OSSINDEX_USERNAME -DossIndexPassword=$OSSINDEX_PASSWORD -Dformats=HTML,JSON'
+  displayMessage './mvnw org.owasp:dependency-check-maven:check -Dnvd.api.key=$NVD_API_KEY -DossIndexUsername=$OSSINDEX_USERNAME -DossIndexPassword=$OSSINDEX_PASSWORD -Dformats=HTML,JSON'
   JAVA_HOME="$JAVA21_HOME" ./mvnw org.owasp:dependency-check-maven:check \
     -Dnvd.api.key="$NVD_API_KEY" \
     -DossIndexUsername="$OSSINDEX_USERNAME" \
