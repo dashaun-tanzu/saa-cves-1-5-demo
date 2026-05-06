@@ -34,6 +34,7 @@ check_dependencies() {
   check_dependency "bc" "Please install bc first." || missing_deps+=("bc")
   check_dependency "git" "Please install git first." || missing_deps+=("git")
   check_dependency "jq" "Please install jq first." || missing_deps+=("jq")
+  check_dependency "tar" "Please install tar first." || missing_deps+=("tar")
 
   if [ ${#missing_deps[@]} -gt 0 ]; then
     echo "Missing dependencies: ${missing_deps[*]}"
@@ -50,6 +51,7 @@ check_env_vars() {
   [[ -z "${NVD_API_KEY}" ]] && missing_vars+=("NVD_API_KEY")
   [[ -z "${OSSINDEX_USERNAME}" ]] && missing_vars+=("OSSINDEX_USERNAME")
   [[ -z "${OSSINDEX_PASSWORD}" ]] && missing_vars+=("OSSINDEX_PASSWORD")
+  [[ -z "${ADVISOR_VERSION}" ]] && missing_vars+=("ADVISOR_VERSION")
 
   if [ ${#missing_vars[@]} -gt 0 ]; then
     echo "Missing required environment variables: ${missing_vars[*]}"
@@ -202,9 +204,48 @@ function collectCVECount {
   echo "${cve_count}" > "$log_file"
 }
 
+# Resolve the advisor CLI artifact id for the current OS/arch
+function advisorArtifactId {
+  local os arch
+  os=$(uname -s)
+  arch=$(uname -m)
+  case "$os" in
+    Darwin)
+      if [[ "$arch" == "arm64" ]]; then
+        echo "application-advisor-cli-macos-arm64"
+      else
+        echo "application-advisor-cli-macos"
+      fi
+      ;;
+    Linux)
+      echo "application-advisor-cli-linux"
+      ;;
+    MINGW*|MSYS*|CYGWIN*|Windows_NT)
+      echo "application-advisor-cli-windows"
+      ;;
+    *)
+      echo "Unsupported OS: $os" >&2
+      return 1
+      ;;
+  esac
+}
+
+# Download the advisor CLI tar via Maven and extract into the working dir.
+# Must be invoked while cwd is the upgrade-example dir.
+function downloadAdvisor {
+  local artifact tar_file
+  artifact=$(advisorArtifactId) || exit 1
+  tar_file="${HOME}/.m2/repository/com/vmware/tanzu/spring/${artifact}/${ADVISOR_VERSION}/${artifact}-${ADVISOR_VERSION}.tar"
+
+  displayMessage "Download Spring Application Advisor CLI ${ADVISOR_VERSION} (${artifact})"
+  pei "mvn -U -q dependency:get -Dartifact=com.vmware.tanzu.spring:${artifact}:${ADVISOR_VERSION}:tar -Dtransitive=false"
+  pei "tar -xf '${tar_file}' -C ."
+  pei "./cli-binary/advisor --version"
+}
+
 function advisorBuildConfig {
   displayMessage "Capture some metadata about the application with Advisor"
-  pei "advisor build-config get"
+  pei "./cli-binary/advisor build-config get"
 }
 
 function captureSBOMCount {
@@ -244,12 +285,12 @@ function showBuildConfigTools {
 
 function advisorUpgradePlanGet {
   displayMessage "How hard could it be to upgrade? Let's get a plan!"
-  pei "advisor upgrade-plan get"
+  pei "./cli-binary/advisor upgrade-plan get"
 }
 
 function advisorUpgradePlanApplySquash {
   displayMessage "Do all the upgrades!"
-  pei "advisor upgrade-plan apply --squash 17"
+  pei "./cli-binary/advisor upgrade-plan apply --squash 17"
 }
 
 # Display a message with a header
@@ -308,6 +349,8 @@ init
 useJava8
 talkingPoint
 cloneApp
+talkingPoint
+downloadAdvisor
 talkingPoint
 advisorBuildConfig
 talkingPoint
